@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Weather App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #2193b0, #6dd5ed);
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    .weather-box {
+      background: rgba(0,0,0,0.3);
+      padding: 20px;
+      border-radius: 15px;
+      margin: 20px auto;
+      width: 300px;
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px;
+      border-radius: 8px;
+      border: none;
+    }
+    button {
+      background: #ff9800;
+      color: white;
+      cursor: pointer;
+    }
+    #weather-icon {
+      width: 80px;
+    }
+    .forecast {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .forecast-day {
+      background: rgba(0,0,0,0.3);
+      padding: 10px;
+      border-radius: 10px;
+      width: 100px;
+    }
+    .forecast-day img {
+      width: 50px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌤 Weather App</h1>
+  <input type="text" id="city" placeholder="Enter city name">
+  <button onclick="getWeatherByCity()">Search</button>
+  <button onclick="getWeatherByLocation()">Use My Location</button>
+
+  <div class="weather-box" id="current-weather">
+    <h2 id="city-name"></h2>
+    <img id="weather-icon" />
+    <p id="temperature"></p>
+    <p id="condition"></p>
+  </div>
+
+  <h2>5-Day Forecast</h2>
+  <div class="forecast" id="forecast"></div>
+
+  <script>
+    const apiKey = "YOUR_API_KEY"; // Replace with your OpenWeatherMap API key
+
+    async function getWeatherByCity() {
+      const city = document.getElementById("city").value;
+      if (!city) {
+        alert("Please enter a city name!");
+        return;
+      }
+      fetchWeather(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`,
+                   `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`);
+    }
+
+    function getWeatherByLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          fetchWeather(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`,
+            `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`
+          );
+        });
+      } else {
+        alert("Geolocation not supported by this browser.");
+      }
+    }
+
+    async function fetchWeather(currentUrl, forecastUrl) {
+      const currentResponse = await fetch(currentUrl);
+      const currentData = await currentResponse.json();
+      
+      if (currentData.cod === "404") {
+        alert("City not found!");
+        return;
+      }
+
+      document.getElementById("city-name").innerText = currentData.name;
+      document.getElementById("temperature").innerText = `🌡 Temp: ${currentData.main.temp} °C`;
+      document.getElementById("condition").innerText = `☁️ Condition: ${currentData.weather[0].description}`;
+      document.getElementById("weather-icon").src =
+        `https://openweathermap.org/img/wn/${currentData.weather[0].icon}@2x.png`;
+
+      // Forecast
+      const forecastResponse = await fetch(forecastUrl);
+      const forecastData = await forecastResponse.json();
+      displayForecast(forecastData);
+    }
+
+    function displayForecast(data) {
+      const forecastDiv = document.getElementById("forecast");
+      forecastDiv.innerHTML = "";
+      
+      // API gives data every 3 hours → pick one forecast per day (12:00 PM)
+      const daily = data.list.filter(f => f.dt_txt.includes("12:00:00"));
+      
+      daily.forEach(day => {
+        const date = new Date(day.dt_txt).toLocaleDateString();
+        const tempMin = day.main.temp_min;
+        const tempMax = day.main.temp_max;
+        const icon = day.weather[0].icon;
+
+        forecastDiv.innerHTML += `
+          <div class="forecast-day">
+            <h4>${date}</h4>
+            <img src="https://openweathermap.org/img/wn/${icon}.png">
+            <p>${tempMin.toFixed(1)}°C - ${tempMax.toFixed(1)}°C</p>
+          </div>
+        `;
+      });
+    }
+  </script>
+</body>
+</html>
